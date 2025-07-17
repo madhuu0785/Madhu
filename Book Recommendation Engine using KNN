@@ -1,0 +1,53 @@
+//Book Recommendation Engine using KNN
+import pandas as pd
+from scipy.sparse import csr_matrix
+from sklearn.neighbors import NearestNeighbors
+
+# Data is already loaded in the notebook (assumed)
+# If not, load as:
+# books = pd.read_csv('books.csv')
+# ratings = pd.read_csv('ratings.csv')
+# users = pd.read_csv('users.csv')
+
+# Filter users with >= 200 ratings
+user_counts = ratings['User-ID'].value_counts()
+ratings = ratings[ratings['User-ID'].isin(user_counts[user_counts >= 200].index)]
+
+# Filter books with >= 100 ratings
+book_counts = ratings['ISBN'].value_counts()
+ratings = ratings[ratings['ISBN'].isin(book_counts[book_counts >= 100].index)]
+
+# Create pivot table: users as rows, books as columns, ratings as values
+book_pivot = ratings.pivot_table(index='ISBN', columns='User-ID', values='Book-Rating').fillna(0)
+
+# Create sparse matrix for efficiency
+book_sparse = csr_matrix(book_pivot.values)
+
+# Train KNN model
+model = NearestNeighbors(metric='cosine', algorithm='brute')
+model.fit(book_sparse)
+
+# Map ISBN to title
+isbn_title = dict(zip(books['ISBN'], books['Book-Title']))
+title_isbn = dict(zip(books['Book-Title'], books['ISBN']))
+
+# Function to get recommendations
+def get_recommends(book_title):
+    isbn = title_isbn.get(book_title)
+    if isbn is None:
+        return f"Book '{book_title}' not found."
+
+    book_idx = book_pivot.index.get_loc(isbn)
+    distances, indices = model.kneighbors(book_sparse[book_idx], n_neighbors=6)
+
+    recs = []
+    for dist, idx in zip(distances.flatten()[1:], indices.flatten()[1:]):
+        rec_isbn = book_pivot.index[idx]
+        rec_title = isbn_title.get(rec_isbn, 'Unknown Title')
+        recs.append([rec_title, float(dist)])
+
+    return [book_title, recs]
+
+# Example test
+print(get_recommends("The Queen of the Damned (Vampire Chronicles (Paperback))"))
+
