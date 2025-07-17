@@ -1,0 +1,68 @@
+//Linear Regression Health Costs Calculator
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+from sklearn.model_selection import train_test_split
+
+# Load dataset (assumed loaded as 'insurance.csv' in working dir)
+data = pd.read_csv('insurance.csv')
+
+# Convert categorical data
+# Convert 'sex' to 0/1
+data['sex'] = data['sex'].map({'male': 0, 'female': 1})
+# Convert 'smoker' to 0/1
+data['smoker'] = data['smoker'].map({'no': 0, 'yes': 1})
+# One-hot encode 'region'
+data = pd.get_dummies(data, columns=['region'], drop_first=True)
+
+# Split features and labels
+labels = data.pop('charges')
+
+# Train-test split 80/20
+train_dataset, test_dataset, train_labels, test_labels = train_test_split(
+    data, labels, test_size=0.2, random_state=42)
+
+# Normalize data
+normalizer = layers.Normalization(axis=-1)
+normalizer.adapt(np.array(train_dataset))
+
+# Build regression model
+model = keras.Sequential([
+    normalizer,
+    layers.Dense(64, activation='relu'),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(1)
+])
+
+model.compile(optimizer=tf.keras.optimizers.Adam(0.001),
+              loss='mean_absolute_error')
+
+# Train model
+history = model.fit(
+    train_dataset,
+    train_labels,
+    epochs=100,
+    verbose=1,
+    validation_split=0.2
+)
+
+# Evaluate on test set
+loss = model.evaluate(test_dataset, test_labels, verbose=1)
+print(f"\n✅ Mean Absolute Error on test set: ${loss:.2f}")
+
+# Predict and plot results
+import matplotlib.pyplot as plt
+
+test_predictions = model.predict(test_dataset).flatten()
+
+plt.scatter(test_labels, test_predictions)
+plt.xlabel('True Values [Charges]')
+plt.ylabel('Predictions [Charges]')
+lims = [0, max(test_labels.max(), test_predictions.max())]
+plt.xlim(lims)
+plt.ylim(lims)
+_ = plt.plot(lims, lims)
+plt.show()
+
