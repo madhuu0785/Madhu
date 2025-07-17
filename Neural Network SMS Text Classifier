@@ -1,0 +1,59 @@
+//Neural Network SMS Text Classifier
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+import pandas as pd
+import numpy as np
+
+# Load dataset (assumed pre-split into train_data, train_labels, test_data, test_labels)
+# If needed, load using:
+# data = pd.read_csv('spam.csv', encoding='latin-1')[['v1', 'v2']]
+# data.columns = ['label', 'text']
+# data['label_num'] = data['label'].map({'ham':0, 'spam':1})
+# then split into train/test
+
+vocab_size = 10000
+embedding_dim = 16
+max_length = 100
+trunc_type='post'
+padding_type='post'
+oov_tok = "<OOV>"
+
+# Fit tokenizer
+tokenizer = Tokenizer(num_words=vocab_size, oov_token=oov_tok)
+tokenizer.fit_on_texts(train_data)
+
+# Tokenize and pad sequences
+train_sequences = tokenizer.texts_to_sequences(train_data)
+train_padded = pad_sequences(train_sequences, maxlen=max_length, padding=padding_type, truncating=trunc_type)
+
+test_sequences = tokenizer.texts_to_sequences(test_data)
+test_padded = pad_sequences(test_sequences, maxlen=max_length, padding=padding_type, truncating=trunc_type)
+
+# Build model
+model = keras.Sequential([
+    layers.Embedding(vocab_size, embedding_dim, input_length=max_length),
+    layers.GlobalAveragePooling1D(),
+    layers.Dense(24, activation='relu'),
+    layers.Dense(1, activation='sigmoid')
+])
+
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# Train model
+num_epochs = 10
+history = model.fit(train_padded, np.array(train_labels), epochs=num_epochs, validation_data=(test_padded, np.array(test_labels)))
+
+# Prediction function
+def predict_message(message):
+    seq = tokenizer.texts_to_sequences([message])
+    padded = pad_sequences(seq, maxlen=max_length, padding=padding_type, truncating=trunc_type)
+    prediction = model.predict(padded)[0][0]
+    label = "spam" if prediction > 0.5 else "ham"
+    return [float(prediction), label]
+
+# Example test
+print(predict_message("Congratulations! You've won a free ticket. Text WIN to 12345 now."))
+print(predict_message("Are we still meeting at 7 pm for dinner?"))
