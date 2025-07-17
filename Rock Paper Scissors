@@ -1,0 +1,49 @@
+//
+Rock Paper Scissorsfrom collections import Counter
+
+def player(prev_play, opponent_history=[]):
+    # Track opponent history safely
+    if prev_play != "":
+        opponent_history.append(prev_play)
+
+    # Use a Markov Chain-based prediction for higher win rates
+    guess = "R"
+    if len(opponent_history) < 3:
+        return "P"  # Safe starting move
+
+    # Create a window of last 3 moves
+    last_moves = "".join(opponent_history[-3:])
+
+    # Track sequences for prediction
+    patterns = {}
+    for i in range(len(opponent_history) - 3):
+        seq = "".join(opponent_history[i:i+3])
+        next_move = opponent_history[i+3]
+        if seq not in patterns:
+            patterns[seq] = Counter()
+        patterns[seq][next_move] += 1
+
+    if last_moves in patterns:
+        prediction = patterns[last_moves].most_common(1)[0][0]
+    else:
+        # Fallback: predict most common overall move
+        count = Counter(opponent_history)
+        prediction = count.most_common(1)[0][0]
+
+    # Play the counter move to predicted move
+    if prediction == "R":
+        guess = "P"
+    elif prediction == "P":
+        guess = "S"
+    else:
+        guess = "R"
+
+    return guess
+
+# How to test locally in main.py:
+# from RPS_game import play, quincy, abbey, kris, mrugesh
+# from RPS import player
+# play(player, quincy, 1000)
+# play(player, abbey, 1000)
+# play(player, kris, 1000)
+# play(player, mrugesh, 1000)
