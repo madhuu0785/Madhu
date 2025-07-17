@@ -1,0 +1,70 @@
+//Cat and Dog Image Classifier
+import tensorflow as tf
+
+# Build CNN Model
+model = tf.keras.models.Sequential([
+    tf.keras.layers.Conv2D(32, (3,3), activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH, 3)),
+    tf.keras.layers.MaxPooling2D(2,2),
+    tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
+    tf.keras.layers.MaxPooling2D(2,2),
+    tf.keras.layers.Conv2D(128, (3,3), activation='relu'),
+    tf.keras.layers.MaxPooling2D(2,2),
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(512, activation='relu'),
+    tf.keras.layers.Dense(1, activation='sigmoid')
+])
+
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+EPOCHS = 15
+history = model.fit(
+    train_data_gen,
+    steps_per_epoch=int(np.ceil(train_data_gen.samples / BATCH_SIZE)),
+    epochs=EPOCHS,
+    validation_data=val_data_gen,
+    validation_steps=int(np.ceil(val_data_gen.samples / BATCH_SIZE))
+)
+
+# Plot accuracy and loss
+acc = history.history['accuracy']
+val_acc = history.history['val_accuracy']
+loss = history.history['loss']
+val_loss = history.history['val_loss']
+
+epochs_range = range(EPOCHS)
+plt.figure(figsize=(12, 8))
+plt.subplot(1, 2, 1)
+plt.plot(epochs_range, acc, label='Training Accuracy')
+plt.plot(epochs_range, val_acc, label='Validation Accuracy')
+plt.legend(loc='lower right')
+plt.title('Training and Validation Accuracy')
+
+plt.subplot(1, 2, 2)
+plt.plot(epochs_range, loss, label='Training Loss')
+plt.plot(epochs_range, val_loss, label='Validation Loss')
+plt.legend(loc='upper right')
+plt.title('Training and Validation Loss')
+plt.show()
+
+# Predictions on test set
+predictions = model.predict(test_data_gen, steps=int(np.ceil(test_data_gen.samples / BATCH_SIZE)))
+probabilities = predictions.flatten()
+
+# Load and plot test images
+test_image_files = []
+for root, dirs, files in os.walk(test_dir):
+    for file in files:
+        if file.endswith('.jpg'):
+            test_image_files.append(os.path.join(root, file))
+
+loaded_images = [tf.keras.preprocessing.image.load_img(img_path, target_size=(IMG_HEIGHT, IMG_WIDTH)) for img_path in test_image_files[:5]]
+loaded_images_array = [tf.keras.preprocessing.image.img_to_array(img)/255.0 for img in loaded_images]
+
+plotImages(loaded_images_array, probs=probabilities[:5])
+
+# Check if passed (dummy check based on last val accuracy)
+if val_acc[-1] >= 0.63:
+    print(f"✅ Passed with Validation Accuracy: {val_acc[-1]*100:.2f}%")
+else:
+    print(f"❌ Keep training, current Validation Accuracy: {val_acc[-1]*100:.2f}%")
+
